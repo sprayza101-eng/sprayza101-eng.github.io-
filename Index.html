@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>คำนวณค่างวดผ่อน</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f6f8fc;--card:#fff;--text:#2b2f36;--muted:#7a808a;--border:#dcdfe4;--out-bg:#f1f6fe;--out-border:#d6e2f5;--accent:#2f6fe4;--chip:#343a40;--chip-text:#fff;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12151a;--card:#1c2027;--text:#eceff3;--muted:#9aa1ac;--border:#3a404a;--out-bg:#1a2433;--out-border:#2c3c57;--accent:#6ea2ff;--chip:#3b424d;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#12151a;--card:#1c2027;--text:#eceff3;--muted:#9aa1ac;--border:#3a404a;--out-bg:#1a2433;--out-border:#2c3c57;--accent:#6ea2ff;--chip:#3b424d;color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);font-family:'Noto Sans Thai',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;display:flex;align-items:center;justify-content:center;padding:20px}
+.card{width:100%;max-width:460px;background:var(--card);border-radius:28px;padding:36px 24px 28px;box-shadow:0 10px 40px rgba(0,0,0,.08)}
+h1{text-align:center;font-size:26px;margin:0 0 26px}
+.row2{display:flex;gap:14px}
+.row2>div{flex:1;min-width:0}
+label{display:block;font-size:14px;font-weight:600;color:var(--muted);margin-bottom:8px}
+input{width:100%;font:inherit;font-size:18px;color:var(--text);background:var(--card);border:2px solid var(--border);border-radius:14px;padding:12px 14px;outline:none}
+input:focus{border-color:var(--accent)}
+#eye{font:inherit;font-size:12px;font-weight:400;color:var(--accent);background:none;border:1px solid var(--border);border-radius:8px;padding:1px 8px;margin-left:4px;cursor:pointer}
+#alias{display:none}
+#pbox.masked #price{display:none}
+#pbox.masked #alias{display:block}
+.divider{display:flex;align-items:center;gap:12px;margin:24px 0 18px;color:var(--muted);font-size:13px}
+.divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--border)}
+.res{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.out{flex:1.6;min-width:0;text-align:right;font-size:24px;font-weight:700;color:var(--accent);background:var(--out-bg);border:1.5px solid var(--out-border);border-radius:14px;padding:12px 16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.res input{flex:.8;width:auto;min-width:0;text-align:center;font-weight:700;font-size:20px;background:var(--chip);color:var(--chip-text);border:none;border-radius:12px;padding:12px 4px}
+.res span{font-size:14px;color:var(--muted);width:44px}
+.item{margin-bottom:14px}.item .res{margin-bottom:6px}
+.item.open .own{display:flex}.mo{cursor:pointer}.item.custom .mo{box-shadow:0 0 0 2px var(--accent)}
+.own{display:none;align-items:center;justify-content:flex-end;gap:8px;font-size:12px;color:var(--muted)}
+.own input{width:96px;font-size:14px;padding:6px 10px;border-radius:10px;text-align:center}
+.note{text-align:center;font-size:12px;color:var(--muted);margin:22px 0 0}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>คำนวณค่างวดผ่อน</h1>
+  <div class="row2">
+    <div id="pbox"><label><span id="plabel">ราคา (บาท)</span> <button id="eye" type="button" title="ซ่อน/แสดงราคา">ซ่อน</button></label><input id="price" type="number" inputmode="decimal" placeholder="0" min="0"><input id="alias" type="text" placeholder="ใส่ชื่อแทนราคา"></div>
+    <div id="rbox"><label for="rate">ดอกเบี้ย (% ต่อเดือน)</label><input id="rate" type="number" inputmode="decimal" placeholder="0.00" min="0" step="0.01"></div>
+  </div>
+  <div class="divider">ค่างวดต่อเดือน</div>
+  <div id="list"></div>
+  <p class="note">* สูตรคำนวณแบบดอกเบี้ยคงที่ (Flat rate)</p>
+</div>
+<script>
+const months=[12,18,24,36,48];
+const list=document.getElementById('list');
+months.forEach(m=>{
+  list.insertAdjacentHTML('beforeend',`<div class="item"><div class="res"><div class="out">0.00</div><input class="mo" type="text" readonly inputmode="none" value="${m}"><span>เดือน</span></div><div class="own"><label style="margin:0;font-weight:400">ดอกเบี้ยเดือนนี้ (%)</label><input class="ir" type="number" inputmode="decimal" min="0" step="0.01" placeholder="ตามช่องบน"></div></div>`);
+});
+const price=document.getElementById('price'),rate=document.getElementById('rate');
+const fmt=n=>n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+function calc(){
+  const p=parseFloat(price.value)||0,top=parseFloat(rate.value)||0;
+  list.querySelectorAll('.item').forEach(row=>{
+    const n=parseInt(row.querySelector('.mo').value)||0;
+    const iv=row.querySelector('.ir').value.trim();
+    const r=iv!==''?(parseFloat(iv)||0):top;
+    row.classList.toggle('custom',iv!=='');
+    // ดอกเบี้ยคงที่: (ราคา + ราคา x ดอกเบี้ย% x จำนวนเดือน) / จำนวนเดือน
+    const pay=n>0?(p+p*(r/100)*n)/n:0;
+    row.querySelector('.out').textContent=fmt(pay);
+  });
+}
+document.addEventListener('input',calc);
+document.getElementById('eye').addEventListener('click',()=>{
+  const b=document.getElementById('pbox'),m=b.classList.toggle('masked');
+  document.getElementById('plabel').textContent=m?'ชื่อ':'ราคา (บาท)';
+  document.getElementById('eye').textContent=m?'แสดงราคา':'ซ่อน';
+  document.getElementById('rbox').style.display=m?'none':'';
+  (m?document.getElementById('alias'):price).focus();
+});
+list.addEventListener('click',e=>{
+  if(!e.target.classList.contains('mo'))return;
+  const item=e.target.closest('.item');
+  item.classList.toggle('open');
+  if(item.classList.contains('open'))item.querySelector('.ir').focus();
+});
+</script>
+</body>
+</html>
